@@ -241,6 +241,8 @@ class Prism::ParseWarning
 end
 
 class Prism::ParseResult
+  extend T::Generic
+
   Value = type_member
 
   sig { returns(Value) }
