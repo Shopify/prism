@@ -2065,7 +2065,7 @@ module Prism
             pushing =
               if part.is_a?(StringNode) && part.unescaped.include?("\n")
                 unescaped = part.unescaped.lines
-                escaped = part.content.lines
+                escaped = part.content.lines.flat_map { |line| line.split(/(?<=\\n)|(?<=\\r\\n)/) }
 
                 escaped_lengths = []
                 normalized_lengths = []
