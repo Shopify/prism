@@ -2064,33 +2064,7 @@ module Prism
           node.parts.each do |part|
             pushing =
               if part.is_a?(StringNode) && part.unescaped.include?("\n")
-                unescaped = part.unescaped.lines
-                escaped = part.content.lines
-
-                escaped_lengths = []
-                normalized_lengths = []
-
-                if node.opening.end_with?("'")
-                  escaped.each do |line|
-                    escaped_lengths << line.bytesize
-                    normalized_lengths << chomped_bytesize(line)
-                  end
-                else
-                  escaped
-                    .chunk_while { |before, after| before.match?(/(?<!\\)\\\r?\n$/) }
-                    .each do |lines|
-                      escaped_lengths << lines.sum(&:bytesize)
-                      normalized_lengths << lines.sum { |line| chomped_bytesize(line) }
-                    end
-                end
-
-                start_offset = part.location.start_offset
-
-                unescaped.map.with_index do |unescaped_line, index|
-                  inner_part = builder.string_internal([unescaped_line, srange_offsets(start_offset, start_offset + normalized_lengths.fetch(index, 0))])
-                  start_offset += escaped_lengths.fetch(index, 0)
-                  inner_part
-                end
+                translate_string_with_newline(part.content, part.unescaped, part.content_loc.start_offset)
               else
                 [visit(part)]
               end
@@ -2139,6 +2113,43 @@ module Prism
           ensure
             parser.pattern_variables.pop
           end
+        end
+
+        def translate_string_with_newline(content, unescaped, content_offset)
+          content_index = 0
+          unescaped_index = 0
+
+          content_length = content.length
+          line_index = 0
+
+          results = []
+          result = +""
+
+          while content_index < content_length
+            if content[content_index] == "\\"
+              result << unescaped[unescaped_index]
+              content_index += 2
+              unescaped_index += 1
+            elsif content[content_index] == unescaped[unescaped_index]
+              result << unescaped[unescaped_index]
+              content_index += 1
+
+              if unescaped[unescaped_index] == "\n"
+                results << builder.string_internal([result, srange_offsets(content_offset + line_index, content_offset + content_index)])
+                result = +""
+                line_index = content_index
+              end
+
+              unescaped_index += 1
+            else
+              puts results
+              raise "mismatch: #{content[content_index]} != #{unescaped[unescaped_index]}"
+            end
+          end
+
+          results << builder.string_internal([result, srange_offsets(content_offset + line_index, content_offset + content_index)]) unless result.empty?
+
+          results
         end
       end
     end
