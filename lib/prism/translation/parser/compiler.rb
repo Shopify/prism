@@ -2141,8 +2141,14 @@ module Prism
               end
 
               unescaped_index += 1
+            elsif content[content_index] == " "
+              content_index += 1
             else
-              puts results
+              puts "================================================================="
+              puts "content:\n#{content.inspect}"
+              puts "unescaped:\n#{unescaped.inspect}"
+              puts "content_index: #{content_index}"
+              puts "unescaped_index: #{unescaped_index}"
               raise "mismatch: #{content[content_index]} != #{unescaped[unescaped_index]}"
             end
           end
