@@ -11,10 +11,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -28,12 +25,18 @@ jobs:
     - name: Build library
       run: bundle exec rake compile
 
+    - name: Package libprism source
+      run: |
+        mkdir -p build/libprism
+        cp -r src build/libprism/src
+        cp -r include build/libprism/include
+        cp Makefile build/libprism/Makefile
+        tar -czf build/libprism.tar.gz -C build libprism
+
     - name: Upload to release
       if: github.event_name == 'release'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       uses: softprops/action-gh-release@v2
       with:
-        files: |
-          build/libprism.so
-          build/libprism.dylib
+        files: build/libprism.tar.gz
