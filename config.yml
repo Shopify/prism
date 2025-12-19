@@ -811,8 +811,9 @@ nodes:
           - GlobalVariableReadNode
           - BackReferenceReadNode
           - NumberedReferenceReadNode
-          - on error: SymbolNode # alias $a b
           - on error: MissingNode # alias $a 42
+          # SymbolNode -> alias $a b
+          - on error: UnexpectedNode
         comment: |
           Represents the old name of the global variable that can be used before aliasing.
 
@@ -853,8 +854,9 @@ nodes:
         kind:
           - SymbolNode
           - InterpolatedSymbolNode
-          - on error: GlobalVariableReadNode # alias a $b
           - on error: MissingNode # alias a 42
+          # GlobalVariableReadNode -> alias a $b
+          - on error: UnexpectedNode
         comment: |
           Represents the old name of the method that will be aliased.
 
@@ -1867,7 +1869,8 @@ nodes:
         kind:
           - ConstantReadNode
           - ConstantPathNode
-          - on error: CallNode # class 0.X end
+          # CallNode -> class 0.X; end
+          - on error: UnexpectedNode
       - name: inheritance_operator_loc
         type: location?
         comment: |
@@ -2549,9 +2552,10 @@ nodes:
           - CallTargetNode
           - IndexTargetNode
           - MultiTargetNode
-          - on error: BackReferenceReadNode # for $& in a end
-          - on error: NumberedReferenceReadNode # for $1 in a end
           - on error: MissingNode # for in 1..10; end
+          # BackReferenceReadNode -> for $& in a; end
+          # NumberedReferenceReadNode -> for $1 in a; end
+          - on error: UnexpectedNode
         comment: |
           The index expression for `for` loops.
 
@@ -3305,10 +3309,11 @@ nodes:
           - EmbeddedStatementsNode
           - EmbeddedVariableNode
           - InterpolatedStringNode # `"a" "#{b}"`
-          - on error: XStringNode # `<<`FOO` "bar"
-          - on error: InterpolatedXStringNode
-          - on error: SymbolNode
-          - on error: InterpolatedSymbolNode
+          # XStringNode -> `<<`FOO` "bar"
+          # InterpolatedXStringNode
+          # SymbolNode
+          # InterpolatedSymbolNode
+          - on error: UnexpectedNode
       - name: closing_loc
         type: location?
     newline: parts
@@ -3689,6 +3694,15 @@ nodes:
   - name: MissingNode
     comment: |
       Represents a node that is missing from the source and results in a syntax error.
+  - name: UnexpectedNode
+    fields:
+      - name: child
+        type: node
+        kind: Node
+    comment: |
+      Wraps a node that appeared in an unexpected context and results in a syntax
+      error. The child node is preserved for tooling that wants to inspect what
+      was written.
   - name: ModuleNode
     fields:
       - name: locals
@@ -3701,6 +3715,8 @@ nodes:
           - ConstantReadNode
           - ConstantPathNode
           - on error: MissingNode # module Parent module end
+          # CallNode -> module 0.X; end
+          - on error: UnexpectedNode
       - name: body
         type: node?
         kind:
@@ -3730,8 +3746,9 @@ nodes:
           - IndexTargetNode
           - MultiTargetNode
           - RequiredParameterNode # def m((a,b)); end
-          - on error: BackReferenceReadNode # a, (b, $&) = z
-          - on error: NumberedReferenceReadNode # a, (b, $1) = z
+          # BackReferenceReadNode -> a, (b, $&) = z
+          # NumberedReferenceReadNode -> a, (b, $1) = z
+          - on error: UnexpectedNode
         comment: |
           Represents the targets expressions before a splat node.
 
@@ -3775,8 +3792,9 @@ nodes:
           - IndexTargetNode
           - MultiTargetNode
           - RequiredParameterNode # def m((*,b)); end
-          - on error: BackReferenceReadNode # a, (*, $&) = z
-          - on error: NumberedReferenceReadNode # a, (*, $1) = z
+          # BackReferenceReadNode -> a, (*, $&) = z
+          # NumberedReferenceReadNode -> a, (*, $1) = z
+          - on error: UnexpectedNode
         comment: |
           Represents the targets expressions after a splat node.
 
@@ -3820,8 +3838,9 @@ nodes:
           - CallTargetNode
           - IndexTargetNode
           - MultiTargetNode
-          - on error: BackReferenceReadNode # $&, = z
-          - on error: NumberedReferenceReadNode # $1, = z
+          # BackReferenceReadNode -> $&, = z
+          # NumberedReferenceReadNode -> $1, = z
+          - on error: UnexpectedNode
         comment: |
           Represents the targets expressions before a splat node.
 
@@ -3864,8 +3883,9 @@ nodes:
           - CallTargetNode
           - IndexTargetNode
           - MultiTargetNode
-          - on error: BackReferenceReadNode # *, $& = z
-          - on error: NumberedReferenceReadNode # *, $1 = z
+          # BackReferenceReadNode -> *, $& = z
+          # NumberedReferenceReadNode -> *, $1 = z
+          - on error: UnexpectedNode
         comment: |
           Represents the targets expressions after a splat node.
 
@@ -4052,10 +4072,11 @@ nodes:
           - RequiredParameterNode
           - MultiTargetNode
           # On parsing error of `f(**kwargs, ...)` or `f(**nil, ...)`, the keyword_rest value is moved here:
-          - on error: KeywordRestParameterNode
-          - on error: NoKeywordsParameterNode
+          # KeywordRestParameterNode
+          # NoKeywordsParameterNode
           # On parsing error of `f(..., ...)`, the first forwarding parameter is moved here:
-          - on error: ForwardingParameterNode
+          # ForwardingParameterNode
+          - on error: UnexpectedNode
       - name: keywords
         type: node[]
         kind:
@@ -4141,6 +4162,8 @@ nodes:
           - NumberedReferenceReadNode # foo in ^$1
           - ItLocalVariableReadNode # proc { 1 in ^it }
           - on error: MissingNode # foo in ^Bar
+          # CallNode -> case a; in ^0.foo; end
+          - on error: UnexpectedNode
         comment: |
           The variable used in the pinned expression
 
@@ -4338,9 +4361,10 @@ nodes:
           - ConstantPathTargetNode
           - CallTargetNode
           - IndexTargetNode
-          - on error: BackReferenceReadNode # => begin; rescue => $&; end
-          - on error: NumberedReferenceReadNode # => begin; rescue => $1; end
           - on error: MissingNode # begin; rescue =>; end
+          # BackReferenceReadNode -> begin; rescue => $&; end
+          # NumberedReferenceReadNode -> begin; rescue => $1; end
+          - on error: UnexpectedNode
       - name: then_keyword_loc
         type: location?
       - name: statements
